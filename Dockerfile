@@ -5,21 +5,24 @@ WORKDIR /go/src/ladder
 
 COPY . .
 
+RUN mkdir -p /dev/net && \
+    mknod /dev/net/tun c 10 200 && \
+    chmod 600 /dev/net/tun
+
 RUN go mod download
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o ladder cmd/main.go
 
-FROM debian:12-slim as release
+FROM tailscale/tailscale:stable as release
 
 WORKDIR /app
 
 COPY --from=build /go/src/ladder/ladder .
 RUN chmod +x /app/ladder
 
-RUN apt update && apt install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-#EXPOSE 8080
+COPY start.sh .
 
-#ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+EXPOSE 8080
 
-CMD ["sh", "-c", "/app/ladder"]
+CMD ["/app/start.sh"]
